@@ -265,6 +265,19 @@ def add_to_basket(uri_hash: str):
     if any(item['uri'] == dataset_dict['uri'] for item in basket):
         flash('Dataset is already in your basket.', 'info')
     else:
+        # Fetch full dataset to discover SPARQL endpoints
+        try:
+            client = FDPClient(timeout=Config.FDP_TIMEOUT, verify_ssl=Config.FDP_VERIFY_SSL)
+            dataset = client.fetch_dataset(
+                dataset_dict['uri'],
+                dataset_dict['catalog_uri'],
+                dataset_dict['fdp_uri'],
+                dataset_dict['fdp_title']
+            )
+            _store_discovered_endpoints(dataset)
+        except Exception as e:
+            logger.warning(f"Could not fetch full dataset for endpoint discovery: {e}")
+
         # Add to basket
         basket.append({
             'uri': dataset_dict['uri'],

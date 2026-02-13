@@ -159,6 +159,17 @@ class FDPClient:
             A ContactPoint instance if found, None otherwise.
         """
         for contact_node in graph.objects(dataset_uri, DCAT.contactPoint):
+            # Handle plain literal contact point (e.g. dcat:contactPoint "user@example.com")
+            if isinstance(contact_node, Literal):
+                value = str(contact_node).strip()
+                if '@' in value:
+                    return ContactPoint(email=value)
+                elif value.startswith('http'):
+                    return ContactPoint(url=value)
+                else:
+                    return ContactPoint(name=value)
+
+            # Handle structured vCard contact point (blank node or URI)
             name = None
             email = None
             url = None
