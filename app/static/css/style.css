@@ -76,6 +76,10 @@ h3 {
     text-align: center;
     padding: 1rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
 }
 
 .site-logo {

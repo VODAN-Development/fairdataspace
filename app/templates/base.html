@@ -12,6 +12,9 @@
             <a href="{{ url_for('main.index') }}">
                 <img src="{{ url_for('static', filename='img/EEPA_Logo.jpeg') }}" alt="EEPA Logo" class="site-logo">
             </a>
+            <a href="{{ url_for('main.index') }}">
+                <img src="{{ url_for('static', filename='img/VODAN_Logo.png') }}" alt="VODAN Logo" class="site-logo">
+            </a>
         </div>
         <nav class="navbar">
             <div class="nav-brand">
@@ -22,6 +25,7 @@
                 <li><a href="{{ url_for('main.about') }}">About</a></li>
                 <li><a href="{{ url_for('fdp.list_fdps') }}">FDPs</a></li>
                 <li><a href="{{ url_for('datasets.browse') }}">Datasets</a></li>
+                <li><a href="{{ url_for('dashboard.index') }}">Statistics</a></li>
                 <li>
                     <a href="{{ url_for('request.basket') }}" class="nav-basket">
                         Request
@@ -41,7 +45,19 @@
                     </form>
                 </li>
                 {% else %}
-                <li><a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary" style="padding: 0.4rem 0.8rem;">Login</a></li>
+                <li><a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary" style="padding: 0.4rem 0.8rem; color: white;">Login</a></li>
+                {% endif %}
+                {% if session.get('is_admin') %}
+                <li><a href="{{ url_for('admin.dashboard') }}" class="btn btn-sm btn-primary" style="padding: 0.4rem 0.8rem; background: var(--accent-color);">Admin</a></li>
+                <li>
+                    <form method="POST" action="{{ url_for('admin.logout') }}" style="display: inline; margin: 0;">
+                        <button type="submit" class="btn btn-sm btn-danger" style="padding: 0.4rem 0.8rem;">
+                            Admin Logout
+                        </button>
+                    </form>
+                </li>
+                {% else %}
+                <li><a href="{{ url_for('admin.login') }}" class="btn btn-sm btn-secondary" style="padding: 0.4rem 0.8rem; color: white;">Admin</a></li>
                 {% endif %}
             </ul>
         </nav>

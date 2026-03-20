@@ -5,10 +5,21 @@
 {% block content %}
 <h1>FAIR Data Points</h1>
 
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid var(--primary-color, #2563eb);">
+    <div class="card-body">
+        <p style="margin: 0;">
+            Want to add your FAIR Data Point to the Humanitarian Data Space?
+            Send a request to <a href="mailto:hds@eepa.be">hds@eepa.be</a> and we will review your submission.
+        </p>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
-        <span class="card-title">Configured FDPs ({{ fdps|length }})</span>
+        <span class="card-title">Connected FDPs ({{ fdps|length }})</span>
+        {% if is_admin %}
         <a href="{{ url_for('fdp.add') }}" class="btn btn-primary btn-sm">Add FDP</a>
+        {% endif %}
     </div>
     <div class="card-body">
         {% if fdps %}
@@ -46,6 +57,7 @@
                 </div>
                 {% endif %}
 
+                {% if is_admin %}
                 {% if fdp.error_message %}
                 <div class="flash flash-error" style="margin-top: 0.5rem;">
                     {{ fdp.error_message }}
@@ -63,13 +75,13 @@
                         </button>
                     </form>
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}
             <div class="empty-state">
-                <h3>No FDPs configured</h3>
-                <p>Add a FAIR Data Point to start discovering datasets.</p>
-                <a href="{{ url_for('fdp.add') }}" class="btn btn-primary">Add FDP</a>
+                <h3>No FDPs configured yet</h3>
+                <p>There are currently no FAIR Data Points connected to the Humanitarian Data Space.</p>
             </div>
         {% endif %}
     </div>

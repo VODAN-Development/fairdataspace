@@ -1,3 +1,9 @@
+# Admin data (contains hashed credentials)
+app/data/admin.json
+
+# Dashboard cached data
+app/data/dashboard/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

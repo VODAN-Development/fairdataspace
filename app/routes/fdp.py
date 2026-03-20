@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, request, session, flash, redirect, url_for
 
 from app.config import Config
+from app.routes.admin import admin_required
 from app.services import FDPClient, FDPConnectionError, FDPParseError, FDPTimeoutError
 from app.utils import get_uri_hash
 
@@ -11,12 +12,14 @@ fdp_bp = Blueprint('fdp', __name__, url_prefix='/fdp')
 
 @fdp_bp.route('/')
 def list_fdps():
-    """List all configured FDPs."""
+    """Public read-only list of configured FDPs."""
     fdps = session.get('fdps', {})
-    return render_template('fdp/list.html', fdps=fdps)
+    is_admin = session.get('is_admin', False)
+    return render_template('fdp/list.html', fdps=fdps, is_admin=is_admin)
 
 
 @fdp_bp.route('/add', methods=['GET', 'POST'])
+@admin_required
 def add():
     """Add a new FDP endpoint."""
     if request.method == 'POST':
@@ -89,6 +92,7 @@ def add():
 
 
 @fdp_bp.route('/<uri_hash>/refresh', methods=['POST'])
+@admin_required
 def refresh(uri_hash: str):
     """Refresh FDP metadata."""
     fdps = session.get('fdps', {})
@@ -127,6 +131,7 @@ def refresh(uri_hash: str):
 
 
 @fdp_bp.route('/<uri_hash>/remove', methods=['POST'])
+@admin_required
 def remove(uri_hash: str):
     """Remove an FDP from the configuration."""
     fdps = session.get('fdps', {})
