@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Humanitarian Data Space{% endblock %}
+
+{% block content %}
+<h1>Admin Dashboard</h1>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">FAIR Data Points</span>
+    </div>
+    <div class="card-body">
+        <p>Manage the FDP endpoints visible to all users.</p>
+        <div style="margin-top: 1rem;">
+            <a href="{{ url_for('fdp.list_fdps') }}" class="btn btn-primary btn-sm">Manage FDPs</a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Edit Page Content</span>
+    </div>
+    <div class="card-body">
+        <p>Update the text displayed on each page of the site.</p>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            {% for key in page_keys %}
+            <a href="{{ url_for('admin.edit_page', page_key=key) }}"
+               class="btn btn-secondary btn-sm">Edit "{{ key }}" page</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Statistics Dashboard</span>
+    </div>
+    <div class="card-body">
+        <p>Configure SPARQL endpoints and refresh schedule for the public statistics dashboard.</p>
+        <div style="margin-top: 1rem;">
+            <a href="{{ url_for('admin.dashboard_config') }}" class="btn btn-primary btn-sm">Configure Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Security</span>
+    </div>
+    <div class="card-body">
+        <p>Change the administrator password.</p>
+        <div style="margin-top: 1rem;">
+            <a href="{{ url_for('admin.change_password') }}" class="btn btn-secondary btn-sm">Change Password</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
