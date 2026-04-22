@@ -23,6 +23,34 @@ VCARD = Namespace('http://www.w3.org/2006/vcard/ns#')
 FDP = Namespace('https://w3id.org/fdp/fdp-o#')
 LDP = Namespace('http://www.w3.org/ns/ldp#')
 VOID = Namespace('http://rdfs.org/ns/void#')
+SCHEMA = Namespace('https://schema.org/')
+
+
+def normalize_application_url(url: Optional[str]) -> Optional[str]:
+    """Normalize a catalog homepage URL so that trivial variants match.
+
+    Two FDPs claiming the same application should produce identical strings,
+    even if one writes ``https://Github.com/foo/Bar/`` and the other
+    ``http://github.com/foo/Bar``. Fragments are dropped; case is only lowered
+    on scheme + host (paths are case-sensitive on most servers).
+    """
+    if not url:
+        return None
+    stripped = url.strip()
+    if not stripped:
+        return None
+    try:
+        from urllib.parse import urlsplit, urlunsplit
+        parts = urlsplit(stripped)
+        scheme = parts.scheme.lower() or 'https'
+        netloc = parts.netloc.lower()
+        # Drop a leading www. so github.com and www.github.com collapse.
+        if netloc.startswith('www.'):
+            netloc = netloc[4:]
+        path = parts.path.rstrip('/')
+        return urlunsplit((scheme, netloc, path, parts.query, ''))
+    except Exception:
+        return stripped.rstrip('/')
 
 
 class FDPError(Exception):
@@ -325,6 +353,19 @@ class FDPClient:
         if not catalog_title:
             catalog_title = catalog_uri.split('/')[-1]  # Use last part of URI as fallback
 
+        # Try several predicates for the application homepage. Normalized so
+        # catalogs hosted on different FDPs can be grouped as one application.
+        catalog_homepage = None
+        for predicate in (FOAF.homepage, DCT.homepage, SCHEMA.url, DCAT.landingPage):
+            for obj in graph.objects(catalog_uri_ref, predicate):
+                candidate = str(obj).strip()
+                if candidate:
+                    catalog_homepage = candidate
+                    break
+            if catalog_homepage:
+                break
+        catalog_homepage = normalize_application_url(catalog_homepage)
+
         # Find all datasets in the catalog
         dataset_uris = set()
 
@@ -364,6 +405,7 @@ class FDPClient:
                     title=title,
                     catalog_uri=catalog_uri,
                     catalog_title=catalog_title,
+                    catalog_homepage=catalog_homepage,
                     fdp_uri=fdp_uri,
                     fdp_title=fdp_title,
                     description=description,
@@ -386,12 +428,14 @@ class FDPClient:
                 try:
                     ds = self.fetch_dataset(uri, catalog_uri, fdp_uri, fdp_title)
                     ds.catalog_title = catalog_title
+                    ds.catalog_homepage = catalog_homepage
                     return ds
                 except FDPError as e:
                     logger.warning(f"Failed to fetch dataset {uri}: {e}")
                     return Dataset(
                         uri=uri, title=uri,
                         catalog_uri=catalog_uri, catalog_title=catalog_title,
+                        catalog_homepage=catalog_homepage,
                         fdp_uri=fdp_uri, fdp_title=fdp_title,
                     )
 

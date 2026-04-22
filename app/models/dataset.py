@@ -95,6 +95,8 @@ class Dataset:
     fdp_uri: str
     fdp_title: str
     catalog_title: Optional[str] = None
+    # Catalog-level application homepage — shared across FDPs that host the same application.
+    catalog_homepage: Optional[str] = None
     description: Optional[str] = None
     publisher: Optional[str] = None
     creator: Optional[str] = None
@@ -140,6 +142,8 @@ class Dataset:
             'contact_point': self.contact_point.to_dict() if self.contact_point else None,
             'landing_page': self.landing_page,
             'catalog_uri': self.catalog_uri,
+            'catalog_title': self.catalog_title,
+            'catalog_homepage': self.catalog_homepage,
             'fdp_uri': self.fdp_uri,
             'fdp_title': self.fdp_title,
             'distributions': [d.to_dict() for d in self.distributions],
@@ -152,6 +156,7 @@ class Dataset:
             'title': self.title,
             'catalog_uri': self.catalog_uri,
             'catalog_title': self.catalog_title,
+            'catalog_homepage': self.catalog_homepage,
             'fdp_uri': self.fdp_uri,
             'fdp_title': self.fdp_title,
             'description': self.description,

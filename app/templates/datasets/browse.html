@@ -41,6 +41,18 @@
                 </div>
 
                 <div class="filter-group">
+                    <label for="app">Application</label>
+                    <select id="app" name="app" class="form-control">
+                        <option value="">All applications</option>
+                        {% for application in applications %}
+                        <option value="{{ application.homepage }}" {% if app_filter == application.homepage %}selected{% endif %}>
+                            {{ application.label }} ({{ application.fdp_count }} FDP{{ 's' if application.fdp_count != 1 else '' }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="filter-group">
                     <label for="sort">Sort by</label>
                     <select id="sort" name="sort" class="form-control">
                         <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Title</option>
@@ -76,6 +88,10 @@
                 <div class="dataset-meta" style="margin-bottom: 0.5rem; color: #666; font-size: 0.9em;">
                     <strong>📁</strong> {{ dataset.fdp_title }}
                     {% if dataset.catalog_title %} › {{ dataset.catalog_title }}{% endif %}
+                    {% if dataset.catalog_homepage %}
+                    &middot; <a href="{{ url_for('datasets.browse', app=dataset.catalog_homepage) }}"
+                                title="Filter to this application across all FDPs">filter by application</a>
+                    {% endif %}
                 </div>
 
                 <!-- Themes (most important for decision-making) -->
@@ -146,21 +162,21 @@
             {% if total_pages > 1 %}
             <div class="pagination">
                 {% if page > 1 %}
-                <a href="{{ url_for('datasets.browse', q=query, theme=theme_filter, sort=sort_by, page=page-1) }}"
+                <a href="{{ url_for('datasets.browse', q=query, theme=theme_filter, app=app_filter, sort=sort_by, page=page-1) }}"
                    class="btn btn-secondary btn-sm">&laquo; Previous</a>
                 {% endif %}
 
                 <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
 
                 {% if page < total_pages %}
-                <a href="{{ url_for('datasets.browse', q=query, theme=theme_filter, sort=sort_by, page=page+1) }}"
+                <a href="{{ url_for('datasets.browse', q=query, theme=theme_filter, app=app_filter, sort=sort_by, page=page+1) }}"
                    class="btn btn-secondary btn-sm">Next &raquo;</a>
                 {% endif %}
             </div>
             {% endif %}
         {% else %}
             <div class="empty-state">
-                {% if query or theme_filter %}
+                {% if query or theme_filter or app_filter %}
                     <h3>No datasets match your filters</h3>
                     <p>Try adjusting your search criteria or <a href="{{ url_for('datasets.browse') }}">clear all filters</a>.</p>
                 {% else %}

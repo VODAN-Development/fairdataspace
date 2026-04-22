@@ -29,6 +29,31 @@ class Theme:
         }
 
 
+@dataclass
+class Application:
+    """Represents an 'application' — a catalog identity shared across FDPs.
+
+    Catalogs on different FDPs that expose the same normalized homepage URL
+    (e.g. a GitHub landing page) are considered the same application. The
+    count field counts the FDPs this application is hosted on, not the
+    number of datasets.
+    """
+
+    homepage: str
+    label: str
+    fdp_count: int
+    dataset_count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            'homepage': self.homepage,
+            'label': self.label,
+            'fdp_count': self.fdp_count,
+            'dataset_count': self.dataset_count,
+        }
+
+
 class DatasetService:
     """Service for aggregating and filtering datasets from FDPs."""
 
@@ -108,6 +133,52 @@ class DatasetService:
             Datasets that have the specified theme.
         """
         return [ds for ds in datasets if theme_uri in ds.themes]
+
+    def filter_by_application(
+        self, datasets: List[Dataset], homepage: str
+    ) -> List[Dataset]:
+        """Filter datasets whose catalog shares the given application homepage."""
+        return [ds for ds in datasets if ds.catalog_homepage == homepage]
+
+    def get_available_applications(
+        self, datasets: List[Dataset]
+    ) -> List['Application']:
+        """Collate datasets by catalog homepage into application groups.
+
+        The label is the most common ``catalog_title`` seen for that homepage
+        (so a dropdown reads "SafeVoice" rather than "https://github.com/...").
+        """
+        from collections import Counter, defaultdict
+
+        titles_per_hp: Dict[str, Counter] = defaultdict(Counter)
+        fdps_per_hp: Dict[str, set] = defaultdict(set)
+        datasets_per_hp: Dict[str, int] = defaultdict(int)
+
+        for ds in datasets:
+            hp = ds.catalog_homepage
+            if not hp:
+                continue
+            if ds.catalog_title:
+                titles_per_hp[hp][ds.catalog_title] += 1
+            if ds.fdp_uri:
+                fdps_per_hp[hp].add(ds.fdp_uri)
+            datasets_per_hp[hp] += 1
+
+        apps = []
+        for hp, ds_count in datasets_per_hp.items():
+            if titles_per_hp[hp]:
+                label = titles_per_hp[hp].most_common(1)[0][0]
+            else:
+                label = hp
+            apps.append(Application(
+                homepage=hp,
+                label=label,
+                fdp_count=len(fdps_per_hp[hp]),
+                dataset_count=ds_count,
+            ))
+        # Most-widely-hosted applications first, then alphabetical.
+        apps.sort(key=lambda a: (-a.fdp_count, a.label.lower()))
+        return apps
 
     def search(self, datasets: List[Dataset], query: str) -> List[Dataset]:
         """

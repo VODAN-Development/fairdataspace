@@ -45,6 +45,8 @@ def dataset_from_dict(data: dict) -> Dataset:
         uri=data['uri'],
         title=data['title'],
         catalog_uri=data['catalog_uri'],
+        catalog_title=data.get('catalog_title'),
+        catalog_homepage=data.get('catalog_homepage'),
         fdp_uri=data['fdp_uri'],
         fdp_title=data['fdp_title'],
         description=data.get('description'),
@@ -91,6 +93,7 @@ def browse():
     # Get filter parameters
     query = request.args.get('q', '').strip()
     theme_filter = request.args.get('theme', '').strip()
+    app_filter = request.args.get('app', '').strip()
     sort_by = request.args.get('sort', 'title')
     page = request.args.get('page', 1, type=int)
 
@@ -110,8 +113,10 @@ def browse():
     client = FDPClient(timeout=Config.FDP_TIMEOUT, verify_ssl=Config.FDP_VERIFY_SSL)
     service = DatasetService(client)
 
-    # Get available themes before filtering
+    # Get available themes and applications before filtering so the dropdowns
+    # reflect the full universe, not the current subset.
     themes = service.get_available_themes(datasets)
+    applications = service.get_available_applications(datasets)
 
     # Apply search filter
     if query:
@@ -120,6 +125,10 @@ def browse():
     # Apply theme filter
     if theme_filter:
         datasets = service.filter_by_theme(datasets, theme_filter)
+
+    # Apply application (catalog homepage) filter
+    if app_filter:
+        datasets = service.filter_by_application(datasets, app_filter)
 
     # Sort datasets
     if sort_by == 'title':
@@ -146,8 +155,10 @@ def browse():
         'datasets/browse.html',
         datasets=paginated_datasets,
         themes=themes,
+        applications=applications,
         query=query,
         theme_filter=theme_filter,
+        app_filter=app_filter,
         sort_by=sort_by,
         page=page,
         total_pages=total_pages,
@@ -284,6 +295,9 @@ def add_to_basket(uri_hash: str):
             'uri_hash': uri_hash,
             'title': dataset_dict['title'],
             'fdp_title': dataset_dict['fdp_title'],
+            'catalog_uri': dataset_dict.get('catalog_uri'),
+            'catalog_title': dataset_dict.get('catalog_title'),
+            'catalog_homepage': dataset_dict.get('catalog_homepage'),
             'contact_point': dataset_dict.get('contact_point'),
         })
         session['basket'] = basket

@@ -45,6 +45,10 @@ class Catalog:
     fdp_uri: str
     description: Optional[str] = None
     publisher: Optional[str] = None
+    # Application homepage (foaf:homepage / dct:homepage / schema:url / dcat:landingPage).
+    # Two catalogs on different FDPs that share a normalized homepage are considered
+    # the same application (e.g. SafeVoice data spread across multiple FDPs).
+    homepage: Optional[str] = None
     datasets: List[str] = field(default_factory=list)
     themes: List[str] = field(default_factory=list)
 
@@ -55,6 +59,7 @@ class Catalog:
             'title': self.title,
             'description': self.description,
             'publisher': self.publisher,
+            'homepage': self.homepage,
             'fdp_uri': self.fdp_uri,
             'datasets': self.datasets,
             'themes': self.themes,
