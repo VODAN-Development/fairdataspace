@@ -1,4 +1,4 @@
-"""Integration tests for the Humanitarian Data Space application."""
+"""Integration tests for the fairdataspace application."""
 
 import pytest
 import responses
@@ -83,11 +83,12 @@ def sample_dataset_rdf():
 class TestIndexRoute:
     """Test the landing page."""
 
-    def test_index_page_loads(self, client):
-        """Test that the index page loads successfully."""
+    def test_index_page_loads(self, client, app):
+        """Test that the index page loads successfully and shows the dataspace's site name."""
         response = client.get('/')
         assert response.status_code == 200
-        assert b'Humanitarian Data Space' in response.data
+        site_name = app.config['SITE_NAME']
+        assert site_name.encode() in response.data
 
     def test_index_shows_status(self, client):
         """Test that the index page shows status counts."""

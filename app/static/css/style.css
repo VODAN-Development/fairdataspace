@@ -1,13 +1,12 @@
-/* Import Google Fonts - Maven Pro + Lato (EEPA style) */
-@import url('https://fonts.googleapis.com/css2?family=Maven+Pro:wght@400;500;600;700&family=Lato:wght@400;700&display=swap');
-
-/* Base styles - EEPA color palette */
+/* Base styles — default palette, overridden by each dataspace's theme.css */
 :root {
     --primary-color: #da931e;
     --primary-hover: #c47f15;
     --primary-light: #d8a552;
+    --primary-rgb: 218, 147, 30;
     --accent-color: #1d3182;
     --accent-hover: #162568;
+    --accent-rgb: 29, 49, 130;
     --secondary-color: #718096;
     --success-color: #16a34a;
     --error-color: #dc2626;
@@ -18,9 +17,9 @@
     --text-primary: #2D3748;
     --text-secondary: #718096;
     --border-color: #E2E8F0;
-    --shadow-sm: 0 1px 2px rgba(218, 147, 30, 0.06);
-    --shadow: 0 2px 8px rgba(218, 147, 30, 0.1), 0 1px 3px rgba(218, 147, 30, 0.06);
-    --shadow-lg: 0 10px 30px rgba(218, 147, 30, 0.12), 0 4px 8px rgba(218, 147, 30, 0.08);
+    --shadow-sm: 0 1px 2px rgba(var(--primary-rgb), 0.06);
+    --shadow: 0 2px 8px rgba(var(--primary-rgb), 0.1), 0 1px 3px rgba(var(--primary-rgb), 0.06);
+    --shadow-lg: 0 10px 30px rgba(var(--primary-rgb), 0.12), 0 4px 8px rgba(var(--primary-rgb), 0.08);
     --gradient-primary: linear-gradient(135deg, #da931e 0%, #e5a835 100%);
     --gradient-accent: linear-gradient(135deg, #1d3182 0%, #2a45a0 100%);
 }
@@ -137,7 +136,7 @@ h3 {
 
 .nav-links a:hover {
     color: var(--primary-color);
-    background-color: rgba(218, 147, 30, 0.08);
+    background-color: rgba(var(--primary-rgb), 0.08);
 }
 
 .nav-links a::after {
@@ -168,7 +167,7 @@ h3 {
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
     margin-left: 0.375rem;
-    box-shadow: 0 2px 4px rgba(29, 49, 130, 0.25);
+    box-shadow: 0 2px 4px rgba(var(--accent-rgb), 0.25);
     animation: pulse 2s ease-in-out infinite;
 }
 
@@ -324,7 +323,7 @@ section h2 {
     font-size: 1.75rem;
     font-weight: 700;
     margin-bottom: 1.25rem;
-    box-shadow: 0 4px 12px rgba(218, 147, 30, 0.25);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.25);
 }
 
 .step h3 {
@@ -391,7 +390,7 @@ section h2 {
 
 .btn-primary:hover {
     background: var(--primary-light);
-    box-shadow: 0 4px 12px rgba(218, 147, 30, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
 }
 
 .btn-secondary {
@@ -446,7 +445,7 @@ section h2 {
 .form-control:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 4px rgba(218, 147, 30, 0.1);
+    box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.1);
     background: white;
 }
 
@@ -782,7 +781,7 @@ textarea.form-control {
 }
 
 .keyword-tag:hover {
-    box-shadow: 0 2px 6px rgba(218, 147, 30, 0.2);
+    box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.2);
 }
 
 .keyword-more {
@@ -804,7 +803,7 @@ textarea.form-control {
 }
 
 .theme-tag:hover {
-    box-shadow: 0 2px 6px rgba(29, 49, 130, 0.2);
+    box-shadow: 0 2px 6px rgba(var(--accent-rgb), 0.2);
 }
 
 /* Dataset card in basket */
@@ -897,7 +896,7 @@ textarea.form-control {
 
 .dist-card-sparql {
     border-left: 4px solid var(--primary-color);
-    background: linear-gradient(to right, rgba(218, 147, 30, 0.03), transparent);
+    background: linear-gradient(to right, rgba(var(--primary-rgb), 0.03), transparent);
 }
 
 .dist-card-header {
@@ -1021,7 +1020,7 @@ footer {
     color: var(--text-secondary);
     border-top: 3px solid var(--primary-color);
     margin-top: auto;
-    box-shadow: 0 -2px 8px rgba(218, 147, 30, 0.05);
+    box-shadow: 0 -2px 8px rgba(var(--primary-rgb), 0.05);
 }
 
 /* Footer icon removed — using logo banner for branding */
@@ -1110,7 +1109,7 @@ main {
     display: inline-block;
     width: 20px;
     height: 20px;
-    border: 3px solid rgba(218, 147, 30, 0.2);
+    border: 3px solid rgba(var(--primary-rgb), 0.2);
     border-radius: 50%;
     border-top-color: var(--primary-color);
     animation: spin 0.8s linear infinite;
@@ -1127,7 +1126,7 @@ main {
     background: linear-gradient(
         90deg,
         var(--surface) 0%,
-        rgba(218, 147, 30, 0.03) 50%,
+        rgba(var(--primary-rgb), 0.03) 50%,
         var(--surface) 100%
     );
     background-size: 200% 100%;

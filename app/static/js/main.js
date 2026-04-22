@@ -1,5 +1,5 @@
 /**
- * Main JavaScript for Humanitarian Data Space
+ * Main JavaScript for the data space application.
  */
 
 // Auto-dismiss flash messages after 5 seconds

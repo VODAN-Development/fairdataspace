@@ -1,4 +1,4 @@
-"""Routes for the Data Visiting PoC application."""
+"""Routes for the fairdataspace application."""
 
 from app.routes.main import main_bp
 from app.routes.fdp import fdp_bp

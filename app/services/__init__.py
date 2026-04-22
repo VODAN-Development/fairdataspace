@@ -1,4 +1,4 @@
-"""Services for the Data Visiting PoC application."""
+"""Services for the fairdataspace application."""
 
 from app.services.fdp_client import (
     FDPClient,

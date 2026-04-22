@@ -1,4 +1,4 @@
-"""Shared utility functions for the Data Visiting PoC application."""
+"""Shared utility functions for the fairdataspace application."""
 
 import hashlib
 

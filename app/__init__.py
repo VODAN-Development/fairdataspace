@@ -1,4 +1,4 @@
-"""Flask application factory for the Data Visiting PoC."""
+"""Flask application factory for the fairdataspace."""
 
 import importlib.util
 import logging

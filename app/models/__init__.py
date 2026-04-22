@@ -1,4 +1,4 @@
-"""Data models for the Data Visiting PoC application."""
+"""Data models for the fairdataspace application."""
 
 from app.models.fdp import FairDataPoint, Catalog
 from app.models.dataset import Dataset, ContactPoint, Distribution

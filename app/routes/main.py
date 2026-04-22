@@ -1,4 +1,4 @@
-"""Main routes for the Data Visiting PoC application."""
+"""Main routes for the fairdataspace application."""
 
 from flask import Blueprint, render_template, session
 

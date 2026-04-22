@@ -1,4 +1,4 @@
-"""Pytest fixtures for the Data Visiting PoC tests."""
+"""Pytest fixtures for the fairdataspace tests."""
 
 import pytest
 from pathlib import Path

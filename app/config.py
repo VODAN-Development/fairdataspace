@@ -1,4 +1,4 @@
-"""Configuration management for the Data Visiting PoC application."""
+"""Configuration management for the fairdataspace application."""
 
 import logging
 import os
