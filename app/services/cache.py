@@ -12,6 +12,13 @@ from app.services.fdp_client import FDPClient, FDPError
 
 logger = logging.getLogger(__name__)
 
+# Catalogs excluded from the humanitarian dataspace (health-data catalogs that
+# belong to the Africa Health Data Space instead).
+_EXCLUDED_CATALOG_URIS = {
+    'https://fdp.tangaza.ac.ke/catalog/218d8f70-f3d9-4860-a07c-b7f56a5c3684',  # COMPASS AfyaKE / Dagoretti
+    'https://fdp.tangaza.ac.ke/catalog/67276eac-f216-4055-ab4a-de3eccddbb7b',  # COMPASS TaifaKE (Pumwani, Mathare)
+}
+
 
 @dataclass
 class FDPCacheEntry:
@@ -76,9 +83,13 @@ class FDPCache:
                     for f in as_completed(futures):
                         datasets.extend(f.result())
 
+            filtered = [
+                ds for ds in datasets
+                if ds.catalog_uri not in _EXCLUDED_CATALOG_URIS
+            ]
             entry = FDPCacheEntry(
                 fdp_dict=fdp.to_dict(),
-                datasets=[ds.to_dict() for ds in datasets],
+                datasets=[ds.to_dict() for ds in filtered],
                 last_updated=datetime.utcnow(),
                 error=None,
             )
