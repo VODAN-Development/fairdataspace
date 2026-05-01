@@ -27,11 +27,11 @@
                 <li><a href="{{ url_for('datasets.browse') }}">Datasets</a></li>
                 <li><a href="{{ url_for('dashboard.index') }}">Statistics</a></li>
                 <li>
-                    <a href="{{ url_for('request.basket') }}" class="nav-basket">
-                        Request
-                        {% set basket_count = session.get('basket', [])|length %}
-                        {% if basket_count > 0 %}
-                        <span class="badge">{{ basket_count }}</span>
+                    <a href="{{ url_for('request.selection') }}" class="nav-selection">
+                        Selection
+                        {% set selection_count = session.get('selection', [])|length %}
+                        {% if selection_count > 0 %}
+                        <span class="badge">{{ selection_count }}</span>
                         {% endif %}
                     </a>
                 </li>

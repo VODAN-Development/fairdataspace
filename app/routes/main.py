@@ -1,6 +1,6 @@
 """Main routes for the fairdataspace application."""
 
-from flask import Blueprint, current_app, render_template, session
+from flask import Blueprint, current_app, redirect, render_template, session, url_for
 
 from app.services.admin_service import get_page_content
 
@@ -12,7 +12,7 @@ def index():
     """Render the landing page."""
     fdp_uris = session.get('fdp_uris', [])
     fdp_count = len(fdp_uris)
-    basket_count = len(session.get('basket', []))
+    selection_count = len(session.get('selection', []))
 
     cache = current_app.fdp_cache
     datasets = cache.get_datasets_for_fdps(fdp_uris)
@@ -26,7 +26,7 @@ def index():
     return render_template(
         'index.html',
         fdp_count=fdp_count,
-        basket_count=basket_count,
+        selection_count=selection_count,
         distribution_count=distribution_count,
         page=content,
     )
@@ -37,3 +37,9 @@ def about():
     """Render the about page."""
     content = get_page_content('about')
     return render_template('about.html', page=content)
+
+
+@main_bp.route('/selection/')
+def selection_alias():
+    """Shareable shortcut to the selection page."""
+    return redirect(url_for('request.selection'))

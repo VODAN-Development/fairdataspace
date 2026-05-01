@@ -9,9 +9,9 @@ request_bp = Blueprint('request', __name__, url_prefix='/request')
 
 
 @request_bp.route('/')
-def basket():
-    """View current request basket, grouped by application then by contact."""
-    basket_items = session.get('basket', [])
+def selection():
+    """View current request selection, grouped by application then by contact."""
+    selection_items = session.get('selection', [])
 
     # Outer grouping: application (catalog_homepage); inner: contact email.
     # Application label = first catalog_title we see for that homepage, falling
@@ -20,7 +20,7 @@ def basket():
     OTHER_KEY = '__other__'
     by_application: dict = {}
 
-    for item in basket_items:
+    for item in selection_items:
         homepage = item.get('catalog_homepage')
         if homepage:
             key = homepage
@@ -56,14 +56,14 @@ def basket():
 
     # Still expose flat by_contact — email composition downstream groups by contact.
     by_contact: dict = {}
-    for item in basket_items:
+    for item in selection_items:
         contact = item.get('contact_point', {}) or {}
         email = contact.get('email') or 'No contact email'
         by_contact.setdefault(email, []).append(item)
 
     return render_template(
-        'request/basket.html',
-        basket=basket_items,
+        'request/selection.html',
+        selection=selection_items,
         by_application=by_application,
         by_contact=by_contact,
     )
@@ -71,25 +71,25 @@ def basket():
 
 @request_bp.route('/clear', methods=['POST'])
 def clear():
-    """Clear the request basket."""
-    session['basket'] = []
+    """Clear the request selection."""
+    session['selection'] = []
     session.modified = True
-    flash('Basket cleared.', 'success')
-    return redirect(url_for('request.basket'))
+    flash('Selection cleared.', 'success')
+    return redirect(url_for('request.selection'))
 
 
 @request_bp.route('/compose', methods=['GET', 'POST'])
 def compose():
     """Compose a data access request."""
-    basket_items = session.get('basket', [])
+    selection_items = session.get('selection', [])
 
-    if not basket_items:
-        flash('Your basket is empty. Add datasets before composing a request.', 'warning')
+    if not selection_items:
+        flash('Your selection is empty. Add datasets before composing a request.', 'warning')
         return redirect(url_for('datasets.browse'))
 
     # Check if all datasets have contact emails
     missing_contacts = []
-    for item in basket_items:
+    for item in selection_items:
         contact = item.get('contact_point', {}) or {}
         if not contact.get('email'):
             missing_contacts.append(item['title'])
@@ -123,14 +123,14 @@ def compose():
                 flash(error, 'error')
             return render_template(
                 'request/compose.html',
-                basket=basket_items,
+                selection=selection_items,
                 missing_contacts=missing_contacts,
                 form_data=request.form,
             )
 
         # Create DatasetReference objects
         datasets = []
-        for item in basket_items:
+        for item in selection_items:
             contact = item.get('contact_point', {}) or {}
             contact_email = contact.get('email', 'unknown@example.com')
 
@@ -167,7 +167,7 @@ def compose():
 
     return render_template(
         'request/compose.html',
-        basket=basket_items,
+        selection=selection_items,
         missing_contacts=missing_contacts,
         form_data={},
     )
@@ -192,9 +192,9 @@ def preview():
 
 @request_bp.route('/finish', methods=['POST'])
 def finish():
-    """Mark the request as complete and clear basket."""
-    # Clear basket and composed emails
-    session['basket'] = []
+    """Mark the request as complete and clear selection."""
+    # Clear selection and composed emails
+    session['selection'] = []
     session['composed_emails'] = []
     session['data_request'] = {}
     session.modified = True

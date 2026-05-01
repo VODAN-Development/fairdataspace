@@ -80,9 +80,9 @@
                 <p class="form-hint">When do you need the results? e.g., "Within 3 months" or "Before December 2024"</p>
             </div>
 
-            <h3 class="form-section-title">Selected Datasets ({{ basket|length }})</h3>
+            <h3 class="form-section-title">Selected Datasets ({{ selection|length }})</h3>
             <div class="selected-datasets">
-                {% for item in basket %}
+                {% for item in selection %}
                 <div class="dataset-summary">
                     <strong>{{ item.title }}</strong>
                     <span class="dataset-meta">from {{ item.fdp_title }}</span>
@@ -92,7 +92,7 @@
         </div>
 
         <div class="card-footer">
-            <a href="{{ url_for('request.basket') }}" class="btn btn-secondary">Back to Basket</a>
+            <a href="{{ url_for('request.selection') }}" class="btn btn-secondary">Back to Selection</a>
             <button type="submit" class="btn btn-primary">Preview Email</button>
         </div>
     </form>

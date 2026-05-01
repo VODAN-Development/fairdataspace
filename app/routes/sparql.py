@@ -19,21 +19,21 @@ from app.config import Config
 sparql_bp = Blueprint('sparql', __name__, url_prefix='/sparql')
 
 
-def _get_basket_endpoints() -> list:
-    """Get SPARQL endpoints from datasets currently in the basket."""
-    basket = session.get('basket', [])
+def _get_selection_endpoints() -> list:
+    """Get SPARQL endpoints from datasets currently in the selection."""
+    selection = session.get('selection', [])
     discovered = session.get('discovered_endpoints', {})
 
-    if not basket or not discovered:
+    if not selection or not discovered:
         return []
 
-    basket_uris = {item['uri'] for item in basket}
+    selection_uris = {item['uri'] for item in selection}
     endpoints = []
     seen_urls = set()
 
     for ep_hash, ep in discovered.items():
-        # Only include endpoints whose source dataset is in the basket
-        if ep.get('dataset_uri') not in basket_uris:
+        # Only include endpoints whose source dataset is in the selection
+        if ep.get('dataset_uri') not in selection_uris:
             continue
         endpoint_url = ep.get('endpoint_url', '')
         if endpoint_url in seen_urls:
@@ -55,18 +55,18 @@ def _get_basket_endpoints() -> list:
 def index() -> str:
     """SPARQL query landing page.
 
-    Shows endpoints available from basket datasets.
+    Shows endpoints available from selection datasets.
 
     Returns:
         Rendered SPARQL index template.
     """
-    endpoints = _get_basket_endpoints()
-    basket = session.get('basket', [])
+    endpoints = _get_selection_endpoints()
+    selection = session.get('selection', [])
 
     return render_template(
         'sparql/index.html',
         endpoints=endpoints,
-        basket=basket,
+        selection=selection,
     )
 
 
@@ -75,21 +75,21 @@ def index() -> str:
 def query() -> str:
     """SPARQL query editor and execution.
 
-    Endpoints come from basket datasets. Credentials come from login.
+    Endpoints come from selection datasets. Credentials come from login.
 
     Returns:
         Rendered query form or redirect to results.
     """
-    endpoints = _get_basket_endpoints()
+    endpoints = _get_selection_endpoints()
 
     if not endpoints:
-        basket = session.get('basket', [])
-        if not basket:
-            flash('Your basket is empty. Add datasets with SPARQL endpoints first.', 'warning')
+        selection = session.get('selection', [])
+        if not selection:
+            flash('Your selection is empty. Add datasets with SPARQL endpoints first.', 'warning')
             return redirect(url_for('datasets.browse'))
         else:
             flash(
-                'No SPARQL endpoints found in your basket datasets. '
+                'No SPARQL endpoints found in your selection datasets. '
                 'View dataset details to discover endpoints, or add datasets that have SPARQL distributions.',
                 'warning'
             )

@@ -118,6 +118,11 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(dashboard_bp)
 
+    # Expose helpers as Jinja filters
+    from app.services.dataset_service import humanize_label, application_key
+    app.jinja_env.filters['humanize'] = humanize_label
+    app.jinja_env.filters['app_key'] = application_key
+
     # Initialize process-wide FDP cache
     from app.services import FDPCache
     app.fdp_cache = FDPCache(app.config)
@@ -151,8 +156,14 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
         session.pop('fdps', None)
         session.pop('datasets_cache', None)
 
-        if 'basket' not in session:
-            session['basket'] = []
+        # Migrate legacy session['basket'] → session['selection'] on first request.
+        if 'basket' in session and 'selection' not in session:
+            session['selection'] = session.pop('basket')
+        else:
+            session.pop('basket', None)
+
+        if 'selection' not in session:
+            session['selection'] = []
         if 'endpoint_credentials' not in session:
             session['endpoint_credentials'] = {}
         if 'discovered_endpoints' not in session:

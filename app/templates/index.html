@@ -40,7 +40,7 @@
             <div class="step-number">3</div>
             <h3>{{ page.step3_title }}</h3>
             <p>{{ page.step3_body }}</p>
-            <a href="{{ url_for('request.basket') }}" class="btn btn-secondary">View basket</a>
+            <a href="{{ url_for('request.selection') }}" class="btn btn-secondary">View selection</a>
         </div>
     </div>
 </section>
@@ -65,8 +65,8 @@
             {% endif %}
         </div>
         <div class="status-card">
-            <div class="status-number">{{ basket_count }}</div>
-            <div class="status-label">Datasets in Basket</div>
+            <div class="status-number">{{ selection_count }}</div>
+            <div class="status-label">Datasets in Selection</div>
         </div>
     </div>
 </section>

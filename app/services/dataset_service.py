@@ -1,6 +1,7 @@
 """Dataset Service for aggregating and filtering datasets."""
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import List, Dict, Any
@@ -10,6 +11,65 @@ from app.services.fdp_client import FDPClient, FDPError
 
 
 logger = logging.getLogger(__name__)
+
+
+def humanize_label(raw: str) -> str:
+    """Turn a bare identifier like 'RefugeeProtectionNeeds' into 'Refugee Protection Needs'.
+
+    Best effort: splits camelCase / PascalCase, replaces underscores and hyphens
+    with spaces, capitalizes each word's first letter. All-lowercase identifiers
+    (e.g. 'humantrafficking') can't be split without a dictionary.
+    """
+    if not raw:
+        return raw
+    text = raw.replace('_', ' ').replace('-', ' ')
+    text = re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', text)
+    text = re.sub(r'(?<=\D)(?=\d)', ' ', text)
+    words = [w for w in text.split() if w]
+    return ' '.join(w[0].upper() + w[1:] for w in words)
+
+
+def application_key(ds) -> str:
+    """Canonical key for grouping a catalog as an application.
+
+    Accepts either a Dataset dataclass or a raw dict (cache representation).
+
+    1. ``catalog_homepage`` — explicit upstream linkage, normalized URL.
+    2. ``catalog_title`` (lowercased, whitespace-collapsed) — same-named
+       catalogs across FDPs group together when no homepage is published.
+    3. ``catalog_uri`` — last resort so orphan catalogs still appear.
+    """
+    def _get(name):
+        if isinstance(ds, dict):
+            return ds.get(name)
+        return getattr(ds, name, None)
+
+    hp = _get('catalog_homepage')
+    if hp:
+        return 'hp:' + hp
+    title = _get('catalog_title')
+    if title:
+        return 'title:' + ' '.join(title.lower().split())
+    uri = _get('catalog_uri')
+    if uri:
+        return 'uri:' + uri
+    return ''
+
+
+@dataclass
+class Source:
+    """A connected FDP, aggregated for the browse-page source chip row."""
+
+    fdp_uri: str
+    fdp_title: str
+    count: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'fdp_uri': self.fdp_uri,
+            'fdp_title': self.fdp_title,
+            'count': self.count,
+        }
 
 
 @dataclass
@@ -33,20 +93,21 @@ class Theme:
 class Application:
     """Represents an 'application' — a catalog identity shared across FDPs.
 
-    Catalogs on different FDPs that expose the same normalized homepage URL
-    (e.g. a GitHub landing page) are considered the same application. The
-    count field counts the FDPs this application is hosted on, not the
-    number of datasets.
+    Catalogs are grouped by ``application_key()``: explicit catalog_homepage
+    when published, otherwise normalized catalog_title, otherwise catalog_uri.
+    The label is the most common ``catalog_title`` seen for that key.
     """
 
-    homepage: str
+    key: str
     label: str
     fdp_count: int
     dataset_count: int
+    # Kept for backwards compat with templates that still reference .homepage
+    homepage: str = ''
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for JSON serialization."""
         return {
+            'key': self.key,
             'homepage': self.homepage,
             'label': self.label,
             'fdp_count': self.fdp_count,
@@ -135,45 +196,51 @@ class DatasetService:
         return [ds for ds in datasets if theme_uri in ds.themes]
 
     def filter_by_application(
-        self, datasets: List[Dataset], homepage: str
+        self, datasets: List[Dataset], key: str
     ) -> List[Dataset]:
-        """Filter datasets whose catalog shares the given application homepage."""
-        return [ds for ds in datasets if ds.catalog_homepage == homepage]
+        """Filter datasets whose catalog shares the given application key."""
+        return [ds for ds in datasets if application_key(ds) == key]
 
     def get_available_applications(
         self, datasets: List[Dataset]
     ) -> List['Application']:
-        """Collate datasets by catalog homepage into application groups.
+        """Collate datasets into application groups using application_key().
 
-        The label is the most common ``catalog_title`` seen for that homepage
-        (so a dropdown reads "SafeVoice" rather than "https://github.com/...").
+        The label is the most common ``catalog_title`` seen for that key.
+        Catalogs without a published homepage but with the same title across
+        FDPs collapse into one application — the typical case for the current
+        FDP fleet, where SafeVoice is published from both EEPA and Tangaza.
         """
         from collections import Counter, defaultdict
 
-        titles_per_hp: Dict[str, Counter] = defaultdict(Counter)
-        fdps_per_hp: Dict[str, set] = defaultdict(set)
-        datasets_per_hp: Dict[str, int] = defaultdict(int)
+        titles_per_key: Dict[str, Counter] = defaultdict(Counter)
+        fdps_per_key: Dict[str, set] = defaultdict(set)
+        datasets_per_key: Dict[str, int] = defaultdict(int)
+        homepages_per_key: Dict[str, str] = {}
 
         for ds in datasets:
-            hp = ds.catalog_homepage
-            if not hp:
+            key = application_key(ds)
+            if not key:
                 continue
             if ds.catalog_title:
-                titles_per_hp[hp][ds.catalog_title] += 1
+                titles_per_key[key][ds.catalog_title] += 1
             if ds.fdp_uri:
-                fdps_per_hp[hp].add(ds.fdp_uri)
-            datasets_per_hp[hp] += 1
+                fdps_per_key[key].add(ds.fdp_uri)
+            datasets_per_key[key] += 1
+            if ds.catalog_homepage and key not in homepages_per_key:
+                homepages_per_key[key] = ds.catalog_homepage
 
         apps = []
-        for hp, ds_count in datasets_per_hp.items():
-            if titles_per_hp[hp]:
-                label = titles_per_hp[hp].most_common(1)[0][0]
+        for key, ds_count in datasets_per_key.items():
+            if titles_per_key[key]:
+                label = titles_per_key[key].most_common(1)[0][0]
             else:
-                label = hp
+                label = key.split(':', 1)[-1]
             apps.append(Application(
-                homepage=hp,
+                key=key,
+                homepage=homepages_per_key.get(key, ''),
                 label=label,
-                fdp_count=len(fdps_per_hp[hp]),
+                fdp_count=len(fdps_per_key[key]),
                 dataset_count=ds_count,
             ))
         # Most-widely-hosted applications first, then alphabetical.
@@ -263,8 +330,9 @@ class DatasetService:
                     if i < len(ds.theme_labels):
                         label = ds.theme_labels[i]
                     if not label:
-                        # Use the last part of the URI as a fallback label
-                        label = theme_uri.split('/')[-1]
+                        # Use the last segment of the URI as a fallback label, humanized
+                        raw = theme_uri.rstrip('/').split('/')[-1].split('#')[-1]
+                        label = humanize_label(raw)
 
                     theme_counts[theme_uri] = {
                         'uri': theme_uri,
@@ -287,3 +355,19 @@ class DatasetService:
         themes.sort(key=lambda t: (-t.count, t.label))
 
         return themes
+
+    def get_available_sources(self, datasets: List[Dataset]) -> List[Source]:
+        """Aggregate datasets by FDP for the source chip row on the browse page."""
+        counts: Dict[str, Dict[str, Any]] = {}
+        for ds in datasets:
+            if not ds.fdp_uri:
+                continue
+            entry = counts.setdefault(ds.fdp_uri, {
+                'fdp_uri': ds.fdp_uri,
+                'fdp_title': ds.fdp_title or ds.fdp_uri,
+                'count': 0,
+            })
+            entry['count'] += 1
+        sources = [Source(**c) for c in counts.values()]
+        sources.sort(key=lambda s: (s.fdp_title or '').lower())
+        return sources

@@ -13,8 +13,8 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">Dataset Details</span>
-        {% if in_basket %}
-        <span class="status-badge status-active">In Basket</span>
+        {% if in_selection %}
+        <span class="status-badge status-active">In Selection</span>
         {% endif %}
     </div>
 
@@ -37,12 +37,14 @@
                 <dd>{{ dataset.catalog_title }}</dd>
                 {% endif %}
 
-                {% if dataset.catalog_homepage %}
+                {% if dataset.catalog_homepage or dataset.catalog_title %}
                 <dt>Application</dt>
                 <dd>
+                    {% if dataset.catalog_homepage %}
                     <a href="{{ dataset.catalog_homepage }}" target="_blank">{{ dataset.catalog_homepage }}</a>
                     &middot;
-                    <a href="{{ url_for('datasets.browse', app=dataset.catalog_homepage) }}">view all in this application</a>
+                    {% endif %}
+                    <a href="{{ url_for('datasets.browse', app=dataset|app_key) }}">view all in this application</a>
                 </dd>
                 {% endif %}
 
@@ -60,13 +62,13 @@
         <div class="detail-section">
             <h3>Also in this application</h3>
             <p class="dataset-description" style="margin-bottom: 0.75rem;">
-                This application has data on other FDPs too. Add them all to your basket in one click, or pick individually:
+                This application has data on other FDPs too. Add them all to your selection in one click, or pick individually:
             </p>
-            <form action="{{ url_for('datasets.add_application_to_basket') }}" method="POST" style="margin-bottom: 1rem;">
-                <input type="hidden" name="homepage" value="{{ dataset.catalog_homepage }}">
+            <form action="{{ url_for('datasets.add_application_to_selection') }}" method="POST" style="margin-bottom: 1rem;">
+                <input type="hidden" name="app_key" value="{{ dataset|app_key }}">
                 <input type="hidden" name="next" value="{{ request.url }}">
                 <button type="submit" class="btn btn-primary btn-sm">
-                    Add all {{ siblings_by_fdp.values()|map('length')|sum }} sibling dataset(s) to basket
+                    Add all {{ siblings_by_fdp.values()|map('length')|sum }} sibling dataset(s) to selection
                 </button>
             </form>
 
@@ -78,10 +80,10 @@
                 {% for sib in siblings %}
                 <div class="dataset-summary">
                     <a href="{{ url_for('datasets.detail', uri_hash=sib.uri_hash) }}">{{ sib.title }}</a>
-                    {% if sib.uri in basket_uris %}
-                    <span class="status-badge status-active" style="margin-left: 0.5rem;">In Basket</span>
+                    {% if sib.uri in selection_uris %}
+                    <span class="status-badge status-active" style="margin-left: 0.5rem;">In Selection</span>
                     {% else %}
-                    <form action="{{ url_for('datasets.add_to_basket', uri_hash=sib.uri_hash) }}"
+                    <form action="{{ url_for('datasets.add_to_selection', uri_hash=sib.uri_hash) }}"
                           method="POST" style="display: inline; margin-left: 0.5rem;">
                         <input type="hidden" name="next" value="{{ request.url }}">
                         <button type="submit" class="btn btn-sm btn-secondary">Add</button>
@@ -262,17 +264,17 @@
     <div class="card-footer">
         <a href="{{ url_for('datasets.browse') }}" class="btn btn-secondary">Back to Datasets</a>
 
-        {% if in_basket %}
-        <form action="{{ url_for('datasets.remove_from_basket', uri_hash=uri_hash) }}"
+        {% if in_selection %}
+        <form action="{{ url_for('datasets.remove_from_selection', uri_hash=uri_hash) }}"
               method="POST" style="display: inline;">
             <input type="hidden" name="next" value="{{ request.url }}">
-            <button type="submit" class="btn btn-danger">Remove from Basket</button>
+            <button type="submit" class="btn btn-danger">Remove from Selection</button>
         </form>
         {% else %}
-        <form action="{{ url_for('datasets.add_to_basket', uri_hash=uri_hash) }}"
+        <form action="{{ url_for('datasets.add_to_selection', uri_hash=uri_hash) }}"
               method="POST" style="display: inline;">
             <input type="hidden" name="next" value="{{ request.url }}">
-            <button type="submit" class="btn btn-primary">Add to Basket</button>
+            <button type="submit" class="btn btn-primary">Add to Selection</button>
         </form>
         {% endif %}
     </div>

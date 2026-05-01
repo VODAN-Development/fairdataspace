@@ -7,13 +7,13 @@ from flask import Blueprint, current_app, render_template, request, session, fla
 from app.config import Config
 from app.models import Dataset, ContactPoint, Distribution
 from app.services import FDPClient, DatasetService
+from app.services.admin_service import get_page_content
+from app.services.dataset_service import application_key
 from app.utils import get_uri_hash
 
 logger = logging.getLogger(__name__)
 
 datasets_bp = Blueprint('datasets', __name__, url_prefix='/datasets')
-
-DATASETS_PER_PAGE = 10
 
 
 def dataset_from_dict(data: dict) -> Dataset:
@@ -66,68 +66,68 @@ def _get_cached_datasets() -> list:
 
 @datasets_bp.route('/')
 def browse():
-    """Browse all datasets with filtering and pagination."""
-    # Get filter parameters
-    query = request.args.get('q', '').strip()
-    theme_filter = request.args.get('theme', '').strip()
-    app_filter = request.args.get('app', '').strip()
-    sort_by = request.args.get('sort', 'title')
-    page = request.args.get('page', 1, type=int)
+    """Render the full cached dataset list for client-side filtering.
 
+    URL params (?q, ?theme, ?app, ?source, ?endpoint) hydrate the JS filter
+    state on load so shared URLs restore the same view; they are NOT applied
+    server-side. Every cached dataset lands in the DOM and `browse-filter.js`
+    hides/shows rows as the user interacts.
+    """
     datasets_dicts = _get_cached_datasets()
-
-    # Convert to Dataset objects for filtering
     datasets = [dataset_from_dict(d) for d in datasets_dicts]
 
-    # Initialize service for filtering (no client needed for filtering)
     client = FDPClient(timeout=Config.FDP_TIMEOUT, verify_ssl=Config.FDP_VERIFY_SSL)
     service = DatasetService(client)
 
-    # Get available themes and applications before filtering so the dropdowns
-    # reflect the full universe, not the current subset.
+    datasets.sort(key=lambda d: (d.title or '').lower())
+
     themes = service.get_available_themes(datasets)
     applications = service.get_available_applications(datasets)
+    sources = service.get_available_sources(datasets)
 
-    if query:
-        datasets = service.search(datasets, query)
-    if theme_filter:
-        datasets = service.filter_by_theme(datasets, theme_filter)
-    if app_filter:
-        datasets = service.filter_by_application(datasets, app_filter)
-
-    if sort_by == 'title':
-        datasets.sort(key=lambda d: (d.title or '').lower())
-    elif sort_by == 'modified':
-        datasets.sort(key=lambda d: d.modified or '', reverse=True)
-    elif sort_by == 'fdp':
-        datasets.sort(key=lambda d: (d.fdp_title or '').lower())
-
-    total_datasets = len(datasets)
-    total_pages = (total_datasets + DATASETS_PER_PAGE - 1) // DATASETS_PER_PAGE
-    page = max(1, min(page, total_pages)) if total_pages > 0 else 1
-
-    start_idx = (page - 1) * DATASETS_PER_PAGE
-    end_idx = start_idx + DATASETS_PER_PAGE
-    paginated_datasets = datasets[start_idx:end_idx]
-
-    basket = session.get('basket', [])
-    basket_uris = {item['uri'] for item in basket}
+    selection = session.get('selection', [])
+    selection_uris = {item['uri'] for item in selection}
 
     cache_info = current_app.fdp_cache.get_cache_info()
+    browse_intro = get_page_content('browse_intro')
+
+    # Group datasets by source FDP so the list renders with source headers.
+    source_errors = (cache_info or {}).get('errors', {}) if cache_info else {}
+    grouped_datasets = []
+    seen_fdps = {}
+    for ds in datasets:
+        key = ds.fdp_uri or ''
+        if key not in seen_fdps:
+            seen_fdps[key] = {
+                'fdp_uri': ds.fdp_uri,
+                'fdp_title': ds.fdp_title or ds.fdp_uri,
+                'online': key not in source_errors,
+                'items': [],
+            }
+            grouped_datasets.append(seen_fdps[key])
+        seen_fdps[key]['items'].append(ds)
+
+    # Filter hydration (JS reads on load).
+    filters = {
+        'q': request.args.get('q', '').strip(),
+        'theme': request.args.get('theme', '').strip(),
+        'app': request.args.get('app', '').strip(),
+        'source': request.args.get('source', '').strip(),
+        'endpoint': request.args.get('endpoint', '').strip(),
+    }
 
     return render_template(
         'datasets/browse.html',
-        datasets=paginated_datasets,
+        datasets=datasets,
+        grouped_datasets=grouped_datasets,
         themes=themes,
         applications=applications,
-        query=query,
-        theme_filter=theme_filter,
-        app_filter=app_filter,
-        sort_by=sort_by,
-        page=page,
-        total_pages=total_pages,
-        total_datasets=total_datasets,
-        basket_uris=basket_uris,
+        sources=sources,
+        scope_total_datasets=len(datasets),
+        scope_total_sources=len(sources),
+        selection_uris=selection_uris,
+        filters=filters,
+        browse_intro=browse_intro,
         get_uri_hash=get_uri_hash,
         cache_info=cache_info,
     )
@@ -181,9 +181,10 @@ def detail(uri_hash: str):
 
     # Find siblings — other cached datasets in the same application.
     siblings_by_fdp: dict = {}
-    if dataset.catalog_homepage:
+    target_key = application_key(dataset)
+    if target_key:
         for d in datasets_dicts:
-            if d.get('catalog_homepage') != dataset.catalog_homepage:
+            if application_key(d) != target_key:
                 continue
             if d['uri'] == dataset.uri:
                 continue
@@ -195,40 +196,40 @@ def detail(uri_hash: str):
                 'fdp_title': fdp_title,
             })
 
-    basket = session.get('basket', [])
-    in_basket = any(item['uri'] == dataset.uri for item in basket)
-    basket_uris = {item['uri'] for item in basket}
+    selection = session.get('selection', [])
+    in_selection = any(item['uri'] == dataset.uri for item in selection)
+    selection_uris = {item['uri'] for item in selection}
 
     return render_template(
         'datasets/detail.html',
         dataset=dataset,
         uri_hash=uri_hash,
-        in_basket=in_basket,
+        in_selection=in_selection,
         siblings_by_fdp=siblings_by_fdp,
-        basket_uris=basket_uris,
+        selection_uris=selection_uris,
     )
 
 
-@datasets_bp.route('/add-application-to-basket', methods=['POST'])
-def add_application_to_basket():
-    """Add every cached dataset with the given catalog_homepage to the basket."""
-    homepage = (request.form.get('homepage') or '').strip()
-    if not homepage:
+@datasets_bp.route('/add-application-to-selection', methods=['POST'])
+def add_application_to_selection():
+    """Add every cached dataset matching the given application key to the selection."""
+    target_key = (request.form.get('app_key') or request.form.get('homepage') or '').strip()
+    if not target_key:
         flash('No application selected.', 'error')
         return redirect(url_for('datasets.browse'))
 
     datasets_dicts = _get_cached_datasets()
-    basket = session.get('basket', [])
-    existing_uris = {item['uri'] for item in basket}
+    selection = session.get('selection', [])
+    existing_uris = {item['uri'] for item in selection}
 
     added = 0
     for d in datasets_dicts:
-        if d.get('catalog_homepage') != homepage:
+        if application_key(d) != target_key:
             continue
         if d['uri'] in existing_uris:
             continue
         uri_hash = get_uri_hash(d['uri'])
-        basket.append({
+        selection.append({
             'uri': d['uri'],
             'uri_hash': uri_hash,
             'title': d['title'],
@@ -241,18 +242,64 @@ def add_application_to_basket():
         existing_uris.add(d['uri'])
         added += 1
 
-    session['basket'] = basket
+    session['selection'] = selection
     session.modified = True
 
+    if request.headers.get('X-Requested-With') == 'fetch':
+        return {'added': added, 'selection_count': len(selection)}, 200
+
     if added:
-        flash(f'Added {added} dataset(s) from this application to your basket.', 'success')
+        flash(f'Added {added} dataset(s) from this application to your selection.', 'success')
     else:
-        flash('All datasets for this application are already in your basket.', 'info')
+        flash('All datasets for this application are already in your selection.', 'info')
 
     next_url = request.form.get('next') or request.referrer
     if not next_url or not next_url.startswith('/') or next_url.startswith('//'):
         next_url = url_for('datasets.browse')
     return redirect(next_url)
+
+
+@datasets_bp.route('/add-multiple-to-selection', methods=['POST'])
+def add_multiple_to_selection():
+    """Bulk-add a list of datasets (by uri_hash) to the selection.
+
+    Used by the browse page's 'Add all visible' button via fetch.
+    """
+    hashes = request.form.getlist('uri_hashes') or request.form.getlist('uri_hashes[]')
+    if not hashes:
+        return {'error': 'no uri_hashes provided'}, 400
+
+    datasets_dicts = _get_cached_datasets()
+    by_hash = {get_uri_hash(d['uri']): d for d in datasets_dicts}
+
+    selection = session.get('selection', [])
+    existing_uris = {item['uri'] for item in selection}
+
+    added = 0
+    added_uris = []
+    for h in hashes:
+        d = by_hash.get(h)
+        if not d or d['uri'] in existing_uris:
+            continue
+        _store_discovered_endpoints(dataset_from_dict(d))
+        selection.append({
+            'uri': d['uri'],
+            'uri_hash': h,
+            'title': d['title'],
+            'fdp_title': d['fdp_title'],
+            'catalog_uri': d.get('catalog_uri'),
+            'catalog_title': d.get('catalog_title'),
+            'catalog_homepage': d.get('catalog_homepage'),
+            'contact_point': d.get('contact_point'),
+        })
+        existing_uris.add(d['uri'])
+        added += 1
+        added_uris.append(d['uri'])
+
+    session['selection'] = selection
+    session.modified = True
+
+    return {'added': added, 'selection_count': len(selection), 'added_uris': added_uris}, 200
 
 
 def _store_discovered_endpoints(dataset: Dataset) -> None:
@@ -279,9 +326,9 @@ def _store_discovered_endpoints(dataset: Dataset) -> None:
     session.modified = True
 
 
-@datasets_bp.route('/<uri_hash>/add-to-basket', methods=['POST'])
-def add_to_basket(uri_hash: str):
-    """Add a dataset to the request basket."""
+@datasets_bp.route('/<uri_hash>/add-to-selection', methods=['POST'])
+def add_to_selection(uri_hash: str):
+    """Add a dataset to the request selection."""
     datasets_dicts = _get_cached_datasets()
 
     dataset_dict = None
@@ -294,14 +341,17 @@ def add_to_basket(uri_hash: str):
         flash('Dataset not found.', 'error')
         return redirect(url_for('datasets.browse'))
 
-    basket = session.get('basket', [])
-    if any(item['uri'] == dataset_dict['uri'] for item in basket):
-        flash('Dataset is already in your basket.', 'info')
+    selection = session.get('selection', [])
+    is_xhr = request.headers.get('X-Requested-With') == 'fetch'
+    already = any(item['uri'] == dataset_dict['uri'] for item in selection)
+    if already:
+        if not is_xhr:
+            flash('Dataset is already in your selection.', 'info')
     else:
         # Full dataset (with distributions) comes from cache — no extra HTTP.
         _store_discovered_endpoints(dataset_from_dict(dataset_dict))
 
-        basket.append({
+        selection.append({
             'uri': dataset_dict['uri'],
             'uri_hash': uri_hash,
             'title': dataset_dict['title'],
@@ -311,9 +361,13 @@ def add_to_basket(uri_hash: str):
             'catalog_homepage': dataset_dict.get('catalog_homepage'),
             'contact_point': dataset_dict.get('contact_point'),
         })
-        session['basket'] = basket
+        session['selection'] = selection
         session.modified = True
-        flash(f'Added "{dataset_dict["title"]}" to your basket.', 'success')
+        if not is_xhr:
+            flash(f'Added "{dataset_dict["title"]}" to your selection.', 'success')
+
+    if is_xhr:
+        return {'added': not already, 'selection_count': len(selection)}, 200
 
     next_url = request.form.get('next') or request.referrer
     if not next_url or not next_url.startswith('/') or next_url.startswith('//'):
@@ -321,19 +375,25 @@ def add_to_basket(uri_hash: str):
     return redirect(next_url)
 
 
-@datasets_bp.route('/<uri_hash>/remove-from-basket', methods=['POST'])
-def remove_from_basket(uri_hash: str):
-    """Remove a dataset from the request basket."""
-    basket = session.get('basket', [])
+@datasets_bp.route('/<uri_hash>/remove-from-selection', methods=['POST'])
+def remove_from_selection(uri_hash: str):
+    """Remove a dataset from the request selection."""
+    selection = session.get('selection', [])
+    is_xhr = request.headers.get('X-Requested-With') == 'fetch'
 
-    new_basket = [item for item in basket if item.get('uri_hash') != uri_hash]
+    new_selection = [item for item in selection if item.get('uri_hash') != uri_hash]
+    removed = len(new_selection) != len(selection)
 
-    if len(new_basket) == len(basket):
-        flash('Dataset not found in basket.', 'error')
-    else:
-        session['basket'] = new_basket
+    if removed:
+        session['selection'] = new_selection
         session.modified = True
-        flash('Removed dataset from basket.', 'success')
+        if not is_xhr:
+            flash('Removed dataset from selection.', 'success')
+    elif not is_xhr:
+        flash('Dataset not found in selection.', 'error')
+
+    if is_xhr:
+        return {'removed': removed, 'selection_count': len(new_selection)}, 200
 
     next_url = request.form.get('next') or request.referrer
     if not next_url or not next_url.startswith('/') or next_url.startswith('//'):
